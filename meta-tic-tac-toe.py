@@ -42,7 +42,7 @@ class TicTacToe():
             self.size = np.sqrt(len(board.flat)).astype(int)
 
         self.current_player = self.get_current_player()
-        
+
         # store references to board slices to speed up checking later
         self.rows = [np.s_[ii, :] for ii in range(size)]
         self.cols = [np.s_[:, ii] for ii in range(size)]
@@ -113,7 +113,7 @@ class TicTacToe():
 
 class MetaTicTacToe(TicTacToe):
     def __init__(self, board=None, size=3, last_move=None):
-        
+
         # create the board of sub-grids
         if board is None:   # if only "size" passed; construct board
             self.size = size
@@ -121,28 +121,28 @@ class MetaTicTacToe(TicTacToe):
         else:  # if only board passed; calculate size
             self.board = board
             self.size = np.sqrt(np.sqrt(len(board.flat))).astype(int)
-            
+
         # create the "meta-board" representing the winner of each sub-grid
         self.meta_board = np.zeros((size, size)).astype(int)
-        
+
         self.current_player = self.get_current_player()  # store current player
-        
+
         # store references to board slices to speed up checking later
         self.rows = [np.s_[ii, :] for ii in range(size)]
         self.cols = [np.s_[:, ii] for ii in range(size)]
         r = list(range(size))
         self.diags = [np.s_[r, r], np.s_[r[::-1], r]]
         self.slices = self.rows + self.cols + self.diags
-        
+
         self.last_move = last_move  # store last played move internally
-        
+
         # store references to sub-grids
         self.grid_masks = np.array([[None for i in range(size)] for j in range(size)])
         for I in range(size):
             for J in range(size):
                 mask = np.s_[I*size:I*size+size, J*size:J*size+size]
                 self.grid_masks[I][J] = mask
-        
+
     def print_board(self):
         board = []
         size = self.size
@@ -162,13 +162,13 @@ class MetaTicTacToe(TicTacToe):
             if (ii % size == 0) and (ii != 0):
                 print(line.format(*["--"]*size**2))
             print(line.format(*row))
-            
+
     def check_grid_winner(self, grid):
 
         winner = 0  # assume no winner
         if np.all(grid == 0):  # if the board is empty
             return winner
-        
+
         for s in self.slices:  # check each slice; rows, cols, diags
             line = grid[s]  # get values on current slice
             # if all line elements are not equal, skip this line.
@@ -179,13 +179,13 @@ class MetaTicTacToe(TicTacToe):
             else:
                 winner = line[0]
                 break
-                
+
         # if no winner but the grid is full, set winner to None
         if (winner == 0) and np.all(grid != 0):
             winner = -1  # -1 means draw
-            
+
         return winner
-    
+
     def check_winner(self):
         # check the winner of every sub-grid and update the meta-board
         for ii, mask in enumerate(self.grid_masks.flat):
@@ -193,74 +193,75 @@ class MetaTicTacToe(TicTacToe):
             self.meta_board.flat[ii] = self.check_grid_winner(grid)
         # check the meta-board for a winner
         return self.check_grid_winner(self.meta_board)
-        
+
     def play(self, index, value):
         super().play(index, value)
         self.last_move = index
-        
+
     def legal_moves(self):
-        
+
         if self.last_move is not None:
             k = self.last_move
             a, b = self.k_to_ab(k)
             conquered_grid = self.meta_board[a, b] != 0
         else:
-            conquered_grid = False        
-        
+            conquered_grid = False
+
         # at the start of the game or if previous move sent player to conquered grid
-        if (self.last_move is None) or conquered_grid:  
+        if (self.last_move is None) or conquered_grid:
             return [k for k, b in enumerate(self.board.flat) if b == 0]
         else:
             # get the last move and identify what position it was in in its sub-grid.
             I, J = self.k_to_ab(self.last_move)
             k_list = self.IJ_to_k(I, J)  # get the list of numbers in that grid
             return [k for k in k_list if self.board.flat[k] == 0]
-        
+
     def copy(self):  # so that the algorithm can make hypothetical moves
         return MetaTicTacToe(board=self.board.copy(),
+                             grid_masks = np.array([[None for i in range(size)] for j in range(size)]),
                              last_move=self.last_move)
-    
+
     def ij_to_IJ(self, i, j):
         """ i, j are the coordinates of an individual square (in matrix coords)
         i.e. i = row, j = col. I, J are the coordinates of each sub-grid on the
         meta-board """
         size = self.size
         return i // size, j // size
-    
+
     def IJ_to_ij(self, I, J):
         size = self.size
         i_range = range(I*size, (I+1)*size)
         j_range = range(J*size, (J+1)*size)
         return [(i, j) for i in i_range for j in j_range]
-    
+
     def IJ_to_k(self, I, J):
         k_list = [self.ij_to_k(i, j) for i, j in self.IJ_to_ij(I, J)]
-        return k_list        
-    
+        return k_list
+
     def k_to_ij(self, k):
-        """ k is the index of each square in the flattened board (this is the 
+        """ k is the index of each square in the flattened board (this is the
         number the user enters to play a move). i, j are the matrix coords of
         the square """
         size = self.size
         i, j = divmod(k, size**2)
         return i, j
-    
+
     def ij_to_k(self, i, j):
         size = self.size
-        return i * size**2 + j % size**2 
-    
+        return i * size**2 + j % size**2
+
     def k_to_IJ(self, k):
         return self.ij_to_IJ(*self.k_to_ij)
-    
+
     def k_to_ab(self, k):
-        """ k is flat index of each square. a, b are the matrix coords of the 
+        """ k is flat index of each square. a, b are the matrix coords of the
         square relative to its sub-grid. This is used to identify which sub-
         grid becomes active after a move is made """
         size = self.size
         a = k // size**2 % size
         b = k % size
         return a, b
-            
+
 #game = MetaTicTacToe(size=3)
 #game.play(40, 1)
 #game.play(30, 2)
@@ -283,7 +284,9 @@ class MetaTicTacToe(TicTacToe):
 #game.meta_board
 
 
-        #%%
+#%%
+
+'''
 class Brute():
     def __init__(self, game, think_N_rounds_ahead=2, identity=1):
         print("ALGORITHM INITIALISING. PREPARE TO HAVE YOUR ASS WHIPPED")
@@ -386,14 +389,14 @@ def print_winner(winner):
         print("it's a draw")
     else:
         print("the winner is ", game.xo(winner))
-game = TicTacToe(size=4)
+game = MetaTicTacToe(size=2)
 algo = Brute(game, think_N_rounds_ahead=1, identity=2)
 legal_moves = game.legal_moves()
 human_move = None
 game.print_board()
 
 while len(legal_moves) > 0:
-    
+
     # human move
     while human_move not in legal_moves:
         inp = input("choose your move, human\n")
@@ -426,7 +429,9 @@ while len(legal_moves) > 0:
         print_winner(winner)
         break
 
-""" fix legal_moves so that it can tell if the player has been sent to a 
+#'''
+
+""" fix legal_moves so that it can tell if the player has been sent to a
 conquered grid! or a full grid! """
 # %%
 """
@@ -467,7 +472,7 @@ class MetaTicTacToe():
     def ij_to_IJ(self, i, j):
         return i // size, j // size
 
-    def get_grid(self, I, J):
+    def get_grid(self, I, J):1
         mask = self.grid_masks[I][J]
         return self.board[mask]
 
@@ -538,29 +543,113 @@ game = MetaTicTacToe(size)
 for i, j in zip(range(size**2), range(size**2)):
     game.play(i, j, 1)
 #"""
-# %%
+# %% new version
+
+class Square():
+    def __init__(self, number, winner=None):
+        self.winner = winner
+        self.number = number
+
+    def __repr__(self):
+        return str(self.winner)
+
+    def __str__(self):
+        return self.__repr__()
+
+    def assemble_board(self):
+        return self.winner
 
 
-"""
-TO DO:
-    make a list of masks describing the grids, so that I can easily grab
-    a grid to check if it is won. I can use the masks for this, becasue they
-    return a view of the object, and I don't need to edit it. Only check it.
-    DONE
+global squareNumber
+squareNumber = 0
 
-    make check_all_grids method to run check_grid_winner on every grid.
-    DONE
 
-    make check_quad_winner update the global grid when it detects a victory.
-    No, you'll have to do that somewhere else, because we'll need to run
-    check_quad_winner again on the global grid.
-    DONE
+class metaBoard(Square):
+    def __init__(self, size, layers, board=None, current_layer=None):
+        self.winner = None
 
-    make an internal variable to store the win state. Have check_global_winner
-    update this
+        # Do this stuff for the top-level board only
+        if current_layer is None:
+            current_layer = 1
 
-    check to see if a move is legal (this will need to go in the wrapper script
-    that knows the history -- which move was last played. The active grid, etc.
-    Actually, maybe I could save the active grid in the game class? )
+            # create the global board (big array without subdivisions)
+            # if none was passed
+            if board is None:
+                globalBoardSize = size**layers
+                self.globalBoard = np.array([Square(i, i) for i in range(globalBoardSize**2)])
+                self.globalBoard = self.globalBoard.reshape(globalBoardSize, globalBoardSize)
+            # otherwise use the board passed by the user
+            else:
+                self.globalBoard = board
 
-"""
+            self.board = self.globalBoard
+
+        else:  # if this is not the top-level board
+            # assume the parent passed a board
+            self.board = board
+
+        # store references to board slices to speed up win checking later
+        """for all levels of metaBoard, the slices should be the same. They
+        should refer to the slices of the *board*, not the globalBoard"""
+
+        """TODO: fix this. It needs to be slice for the list of sublists. """
+        self.rows = [np.s_[ii, :] for ii in range(size)]
+        self.cols = [np.s_[:, ii] for ii in range(size)]
+        r = list(range(size))
+        self.diags = [np.s_[r, r], np.s_[r[::-1], r]]
+        self.slices = self.rows + self.cols + self.diags
+
+        # get slices of sub-grids
+        # calculate width of subBoard based on current layer
+        chunk = int(size**layers/(2**current_layer))
+        self.grid_masks = []
+        for I in range(size):
+            for J in range(size):
+                mask = np.s_[I*chunk:I*chunk+chunk, J*chunk:J*chunk+chunk]
+                self.grid_masks.append(mask)
+
+        # if this is not the bottom-level board, create more sub-boards
+        self.subBoards = []
+        if current_layer < layers:
+            for mask in self.grid_masks:
+                args = dict(size=size, layers=layers,
+                            current_layer=current_layer+1,
+                            board=self.board[mask])
+                self.subBoards.append(metaBoard(**args))
+
+        # if this is the bottom-level board, have a list of squares as
+        # sub-boards. Because the lowest-level board still needs to be able to
+        # ask its sub-boards (squares) what their winners are.
+        elif current_layer == layers:
+            # flatten the board to get a list of Square objects
+            self.subBoards = list(self.board.flatten())
+
+    def play(squareNumber):
+        """IMPLEMENT ME
+        This method needs to
+        - update the global board
+        - report the last played subBoard to the parent board (return number)
+        - call the play method of the subBoard in which the Square is (so that
+          the subBoard can also log its next active subsubBoard, etc...
+        - the top-level metaBoard needs to keep track of whose go it is. Maybe
+          have a separate function for this?
+        - reuse the k_to_IJ stuff from the previous implementation.
+        """
+        pass
+
+    def print_board(self):
+        print(self.board)
+
+    def __repr__(self):
+        return str(self.board)
+
+    def __str__(self):
+        return self.__repr__()
+
+
+mb = metaBoard(size=2, layers=3)
+mb.print_board()
+print("mb.board =\n", mb.board)
+print("mb.grid_masks =\n", mb.grid_masks)
+for gm in mb.grid_masks:
+    print(mb.board[gm])
