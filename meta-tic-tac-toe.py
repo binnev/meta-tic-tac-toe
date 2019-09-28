@@ -567,15 +567,18 @@ squareNumber = 0
 class metaBoard(Square):
     def __init__(self, size, layers, board=None, current_layer=None):
         self.winner = None
+        self.size = size
+        self.layers = layers
+        self.current_layer = current_layer
 
         # Do this stuff for the top-level board only
-        if current_layer is None:
-            current_layer = 1
+        if self.current_layer is None:
+            self.current_layer = 1
 
             # create the global board (big array without subdivisions)
             # if none was passed
             if board is None:
-                globalBoardSize = size**layers
+                globalBoardSize = self.size**layers
                 self.globalBoard = np.array([Square(i, i) for i in range(globalBoardSize**2)])
                 self.globalBoard = self.globalBoard.reshape(globalBoardSize, globalBoardSize)
             # otherwise use the board passed by the user
@@ -601,30 +604,79 @@ class metaBoard(Square):
 
         # get slices of sub-grids
         # calculate width of subBoard based on current layer
-        chunk = int(size**layers/(2**current_layer))
+        chunk = int(self.size**self.layers/(2**self.current_layer))
         self.grid_masks = []
-        for I in range(size):
-            for J in range(size):
+        for I in range(self.size):
+            for J in range(self.size):
                 mask = np.s_[I*chunk:I*chunk+chunk, J*chunk:J*chunk+chunk]
                 self.grid_masks.append(mask)
 
         # if this is not the bottom-level board, create more sub-boards
         self.subBoards = []
-        if current_layer < layers:
+        if self.current_layer < self.layers:
             for mask in self.grid_masks:
-                args = dict(size=size, layers=layers,
-                            current_layer=current_layer+1,
+                args = dict(size=self.size, layers=self.layers,
+                            current_layer=self.current_layer+1,
                             board=self.board[mask])
                 self.subBoards.append(metaBoard(**args))
 
         # if this is the bottom-level board, have a list of squares as
         # sub-boards. Because the lowest-level board still needs to be able to
         # ask its sub-boards (squares) what their winners are.
-        elif current_layer == layers:
+        elif self.current_layer == self.layers:
             # flatten the board to get a list of Square objects
             self.subBoards = list(self.board.flatten())
 
-    def play(squareNumber):
+    def containsSquare(self, squareNumber):
+        squareNumbers = [s.number for s in self.board.flatten()]
+        return (squareNumber in squareNumbers)
+
+    def __repr__(self):
+        return str(self.board)
+
+    def __str__(self):
+        return self.__repr__()
+
+    def getNextSubBoard(self, squareNumber):
+        """Get the next active subBoard based on the current move (move is
+        specified by square number)
+        """
+
+        """You need to add some logic for if someone gets sent to a conquered
+        subBoard. Or maybe that can be in a getLegalMoves method. This method
+        just needs to return the next subBoard. getLegalMoves can then check
+        if that subBoard is conquered or not."""
+
+        # if this is not the lowest layer
+        if self.current_layer < self.layers:
+            # get the subBoard the current move was played in
+            moveSubBoard = self.subBoards[self.getMoveSubBoard(squareNumber)]
+            # return the index of the subSubBoard in which the move was played
+            return moveSubBoard.getMoveSubBoard(squareNumber)
+        # prevent this method being called on the lowest layer board.
+        else:
+            raise Exception("You can't get the next subBoard for the lowest "
+                            "layer")
+
+    def getMoveSubBoard(self, squareNumber):
+        """Get the index of the subBoard in which the current move is being
+        played."""
+        for i, subBoard in enumerate(self.subBoards):
+            # if this is not the lowest layer, check subBoards
+            if self.current_layer < self.layers:
+                test = subBoard.containsSquare(squareNumber)
+            # if this is the lowest layer, compare to square number directly
+            else:
+                test = subBoard.number == squareNumber
+
+            if test:
+                return i
+
+        raise Exception(f"I couldn't find square number {squareNumber} "
+                        "in any of my subBoards. My board looks like:\n"
+                        f"{self.board}")
+
+    def play(self, squareNumber):
         """IMPLEMENT ME
         This method needs to
         - update the global board
@@ -635,21 +687,21 @@ class metaBoard(Square):
           have a separate function for this?
         - reuse the k_to_IJ stuff from the previous implementation.
         """
-        pass
+        # base case
+        if self.current_layer == self.layers:
+            pass
+
+        # recursive case
+        elif self.current_layer < self.layers:
+            pass
+
+        return "index of the subBoard move was played in"
 
     def print_board(self):
         print(self.board)
 
-    def __repr__(self):
-        return str(self.board)
-
-    def __str__(self):
-        return self.__repr__()
 
 
-mb = metaBoard(size=2, layers=3)
+mb = metaBoard(size=2, layers=2)
 mb.print_board()
 print("mb.board =\n", mb.board)
-print("mb.grid_masks =\n", mb.grid_masks)
-for gm in mb.grid_masks:
-    print(mb.board[gm])
