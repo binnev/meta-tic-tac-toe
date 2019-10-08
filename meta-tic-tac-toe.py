@@ -700,8 +700,33 @@ class metaBoard(Square):
     def print_board(self):
         print(self.board)
 
+    def plot_board(self, ax=None, depth=1):
 
+        # top layer stuff
+        if ax is None:
+            fig, ax = plt.subplots()
+        plt.sca(ax)
+        plt.axis("square")
+
+        # put recursive stuff here
+
+        # base case here
+        width = self.board.shape[0]
+        ticks = np.arange(-.5, width, 1)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xticks(ticks, minor=True)
+        ax.set_yticks(ticks, minor=True)
+        ax.tick_params(length=0, direction="out", which="minor")
+
+        plt.setp(ax, xlim=ax.get_xlim(), ylim=ax.get_ylim())
+        plt.grid(which="minor", color="k", linewidth=1, zorder=100)
+
+        return ax.get_figure(), ax
 
 mb = metaBoard(size=2, layers=2)
 mb.print_board()
 print("mb.board =\n", mb.board)
+showMe = mb.board.astype(str).astype(int)
+fig, ax = mb.plot_board()
+#ax.imshow(showMe)
