@@ -676,7 +676,7 @@ class metaBoard(Square):
                         "in any of my subBoards. My board looks like:\n"
                         f"{self.board}")
 
-    def play(self, squareNumber):
+    def play(self, player, squareNumber):
         """IMPLEMENT ME
         This method needs to
         - update the global board
@@ -687,13 +687,26 @@ class metaBoard(Square):
           have a separate function for this?
         - reuse the k_to_IJ stuff from the previous implementation.
         """
+
+        if not self.containsSquare(squareNumber):
+            raise Exception("This board doesn't contain that square")
+
         # base case
         if self.current_layer == self.layers:
-            pass
+            # find the square that has the right number
+            for i, s in enumerate(self.subBoards):
+                if s.number == squareNumber:
+                    # update the winner of that square to "player" argument
+                    s.winner = player
+                    return i
 
         # recursive case
         elif self.current_layer < self.layers:
-            pass
+            # find the subBoard that contains the squareNumber
+            for i, s in enumerate(self.subBoards):
+                if s.containsSquare(squareNumber):
+                    s.play(player, squareNumber)
+                    return i
 
         return "index of the subBoard move was played in"
 
@@ -703,30 +716,41 @@ class metaBoard(Square):
     def plot_board(self, ax=None, depth=1):
 
         # top layer stuff
-        if ax is None:
-            fig, ax = plt.subplots()
-        plt.sca(ax)
-        plt.axis("square")
+        if depth == 1:
+            if ax is None:
+                fig, ax = plt.subplots(figsize=(6, 6))
+            plt.sca(ax)
+            # plt.axis("square")
+#            plt.imshow(self.board.astype(str))
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+        # plot the moves played so far
+        for y, row in enumerate(self.board):
+            for x, square in enumerate(row):
+                ax.text(x, y, square.winner, va="center", ha="center")
 
         # put recursive stuff here
-
-        # base case here
+        # plot the current layer's lines
         width = self.board.shape[0]
-        ticks = np.arange(-.5, width, 1)
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_xticks(ticks, minor=True)
-        ax.set_yticks(ticks, minor=True)
-        ax.tick_params(length=0, direction="out", which="minor")
+        spacing = self.size**(depth-1)
+        thickness = 1 + 2*(depth-1)
+        locations = np.arange(spacing, width, spacing) - .5
+        span = -.5, width-.5
+        for loc in locations:
+            plt.plot(span, (loc, loc), lw=thickness, c="k")
+            plt.plot((loc, loc), span, lw=thickness, c="k")
 
-        plt.setp(ax, xlim=ax.get_xlim(), ylim=ax.get_ylim())
-        plt.grid(which="minor", color="k", linewidth=1, zorder=100)
+        if depth < self.layers:
+            self.plot_board(ax=ax, depth=depth+1)
 
         return ax.get_figure(), ax
 
 mb = metaBoard(size=2, layers=2)
 mb.print_board()
 print("mb.board =\n", mb.board)
-showMe = mb.board.astype(str).astype(int)
 fig, ax = mb.plot_board()
-#ax.imshow(showMe)
+mb.play("x", 13)
+mb.play("YOMAMA", 0)
+fig, ax = mb.plot_board()
+
